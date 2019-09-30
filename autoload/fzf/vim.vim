@@ -587,11 +587,23 @@ function! s:jump(t, w)
   execute a:w.'wincmd w'
 endfunction
 
-function! s:bufopen(lines)
+function! s:buffers_sink(lines)
   if len(a:lines) < 2
     return
   endif
-  let b = matchstr(a:lines[1], '\[\zs[0-9]*\ze\]')
+
+  let pat = '\[\zs[0-9]*\ze\]'
+  if a:lines[0] == 'ctrl-d'
+      let buffers = map(a:lines[1:], 'matchstr(v:val, pat)')
+      for b in buffers 
+          execute 'bdelete' b
+      endfor
+      call fzf#vim#buffers()
+      call feedkeys('a', 'n')
+      return
+  endif
+
+  let b = matchstr(a:lines[1], pat)
   if empty(a:lines[0]) && get(g:, 'fzf_buffers_jump')
     let [t, w] = s:find_open_window(b)
     if t
@@ -632,8 +644,8 @@ function! fzf#vim#buffers(...)
         \ [a:1, a:000[1:]] : ['', a:000]
   return s:fzf('buffers', {
   \ 'source':  map(s:buflisted_sorted(), 's:format_buffer(v:val)'),
-  \ 'sink*':   s:function('s:bufopen'),
-  \ 'options': ['+m', '-x', '--tiebreak=index', '--header-lines=1', '--ansi', '-d', '\t', '-n', '2,1..2', '--prompt', 'Buf> ', '--query', query]
+  \ 'sink*':   s:function('s:buffers_sink'),
+  \ 'options': ['+m', '-x', '--multi', '--expect=ctrl-d', '--tiebreak=index', '--header-lines=1', '--ansi', '-d', '\t', '-n', '2,1..2', '--prompt', 'Buf> ', '--bind', 'alt-a:select-all,alt-d:deselect-all', '--query', query]
   \}, args)
 endfunction
 
